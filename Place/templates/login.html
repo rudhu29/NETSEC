@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NETSEC | Unified Access</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@100;400;900&family=JetBrains+Mono:wght@300;500;700&display=swap');
+        
+        :root {
+            --bg: #000000;
+            --grid-line: #1a1a1a;
+            --accent: #ff4d00;
+            --text-main: #ffffff;
+            --term-dim: #666;
+            --term-green: #4af626;
+            --term-yellow: #f1fa8c;
+            --term-red: #ff5555;
+            --term-blue: #8be9fd;
+        }
+
+        body {
+            margin: 0; background: var(--bg); color: var(--text-main);
+            font-family: 'Geist', sans-serif;
+            height: 100vh; overflow: hidden;
+            display: flex; align-items: center; padding-left: 10%;
+        }
+
+        /* --- THE DYNAMIC GRID BACKGROUND --- */
+        .bg-grid {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(3, 1fr);
+            gap: 1px; background-color: var(--grid-line); /* Creates the 1px grid lines */
+            z-index: -1; opacity: 0.35; /* Adjusted opacity to make foreground pop */
+        }
+
+        .term-cell {
+            background-color: var(--bg);
+            padding: 15px; font-family: 'JetBrains Mono', monospace;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+
+        .term-header {
+            font-size: 10px; font-weight: 700; color: var(--term-dim);
+            text-transform: uppercase; margin-bottom: 15px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        .term-header .dot {
+            width: 6px; height: 6px; border-radius: 50%; background: var(--term-dim);
+        }
+        .term-header .dot.active { background: var(--term-green); box-shadow: 0 0 5px var(--term-green); }
+        .term-header .dot.busy { background: var(--term-yellow); box-shadow: 0 0 5px var(--term-yellow); }
+
+        .term-content {
+            font-size: 11px; line-height: 1.6; color: #aaa;
+            display: flex; flex-direction: column; justify-content: flex-end;
+            flex-grow: 1;
+        }
+
+        .term-line {
+            animation: fadeIn 0.2s ease-in;
+            word-wrap: break-word;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Specific log colors */
+        .c-dim { color: var(--term-dim); }
+        .c-green { color: var(--term-green); }
+        .c-yellow { color: var(--term-yellow); }
+        .c-red { color: var(--term-red); }
+        .c-blue { color: var(--term-blue); }
+
+        /* --- MAIN FOREGROUND CONTENT --- */
+        .main-content {
+            width: 550px; z-index: 10;
+            /* Subtle glow behind text to ensure readability over the grid */
+            background: radial-gradient(circle at center, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 70%);
+            padding: 40px; border-radius: 20px;
+        }
+
+        .logo-tag {
+            background: var(--accent); color: #000; padding: 4px 10px;
+            font-size: 11px; font-weight: 900; display: inline-block;
+            margin-bottom: 25px; text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        .hero-title {
+            font-size: 80px; line-height: 0.9; letter-spacing: -4px;
+            margin-bottom: 24px;
+        }
+        .hero-title span { display: block; }
+        .hero-title .regular { font-weight: 400; }
+        .hero-title .thin { font-weight: 100; color: rgba(255,255,255,0.3); }
+        .hero-title .bold { font-weight: 900; }
+
+        .desc {
+            color: #999; font-size: 14px; max-width: 400px;
+            line-height: 1.6; margin-bottom: 40px; font-weight: 400;
+        }
+
+        /* --- INDUSTRIAL FORM --- */
+        .auth-container { border-top: 1px solid var(--grid-line); padding-top: 30px; }
+
+        .input-group { display: flex; border: 1px solid var(--grid-line); margin-bottom: -1px; background: rgba(0,0,0,0.6); }
+
+        .label {
+            width: 130px; padding: 16px; font-size: 10px; font-weight: 700;
+            color: var(--term-dim); border-right: 1px solid var(--grid-line);
+            text-transform: uppercase; display: flex; align-items: center;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        input {
+            background: transparent; border: none; color: #fff; padding: 16px;
+            width: 100%; outline: none; font-family: 'JetBrains Mono', monospace; font-size: 14px;
+        }
+        input::placeholder { color: #333; }
+
+        .btn-start {
+            background: #fff; color: #000; border: none; padding: 16px 32px;
+            margin-top: 30px; font-size: 14px; font-weight: 900; cursor: pointer;
+            display: inline-flex; align-items: center; gap: 10px; transition: 0.2s;
+            font-family: 'Geist', sans-serif;
+        }
+        .btn-start:hover { background: var(--accent); color: #fff; }
+
+        .error-msg {
+            color: var(--term-red); font-family: 'JetBrains Mono'; font-size: 12px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bg-grid" id="terminalGrid">
+        </div>
+
+    <div class="main-content">
+        <div class="logo-tag">NETSEC AI</div>
+        
+        <div class="hero-title">
+            <span class="regular">Secure Code,</span>
+            <span class="thin">Codex,</span>
+            <span class="bold">NETSEC</span>
+        </div>
+
+        <p class="desc">
+            Enterprise-grade monitoring agents with frontier and open-source model access. 
+            Ship faster with autonomous multi-agent execution through one API.
+        </p>
+
+        {% if error %} <div class="error-msg">> [AUTH_ERR] {{ error }}</div> {% endif %}
+
+        <form method="POST" action="/login" class="auth-container">
+            <div class="input-group">
+                <div class="label">IDENTITY</div>
+                <input type="text" name="username" placeholder="admin_id" required autocomplete="off">
+            </div>
+            <div class="input-group">
+                <div class="label">ACCESS_KEY</div>
+                <input type="password" name="password" placeholder="••••••••" required>
+            </div>
+
+            <button type="submit" class="btn-start">
+                GET STARTED ↗
+            </button>
+        </form>
+    </div>
+
+    <script>
+        // Data streams simulating different microservices
+        const streams = [
+            {
+                title: "AGENT_01 // REFACTOR", status: "active",
+                logs: [
+                    "> netsec agent run --task refactor-auth",
+                    "<span class='c-dim'>[INIT] Loading codebase context...</span>",
+                    "<span class='c-blue'>[SCAN] 47 files analyzed in 1.2s</span>",
+                    "> Extracting auth middleware -> /lib/auth.ts",
+                    "<span class='c-green'>[OK] src/routes.ts - removed inline checks</span>"
+                ]
+            },
+            {
+                title: "AGENT_03 // MIGRATE", status: "busy",
+                logs: [
+                    "> netsec agent run --task db-migration",
+                    "<span class='c-dim'>[INFO] Connecting to schema registry...</span>",
+                    "<span class='c-blue'>[DIFF] 3 tables modified, 1 added</span>",
+                    "<span class='c-green'>[OK] Migration 0247_add_teams.sql applied</span>",
+                    "<span class='c-dim'>[VAL] Foreign keys verified</span>"
+                ]
+            },
+            {
+                title: "AGENT_07 // DEPLOY", status: "active",
+                logs: [
+                    "> netsec agent run --task deploy-staging",
+                    "<span class='c-dim'>[BUILD] next build ............... </span><span class='c-green'>OK</span>",
+                    "<span class='c-dim'>[LINT] </span><span class='c-green'>0 errors, 0 warnings</span>",
+                    "<span class='c-blue'>[PUSH] Deploying to staging...</span>",
+                    "<span class='c-green'>[SUCCESS] Available at stg.netsec.dev</span>"
+                ]
+            },
+            {
+                title: "SYSTEM // EVENT LOG", status: "active",
+                logs: [
+                    "<span class='c-dim'>[18:01:04] Agent-01 started</span>",
+                    "<span class='c-dim'>[18:01:04] Agent-02 started</span>",
+                    "<span class='c-dim'>[18:01:05] Agent-03 started</span>",
+                    "<span class='c-dim'>[18:01:12] Agent-01 completed (8.1s)</span>",
+                    "<span class='c-yellow'>[WARN] High memory usage detected on node-4</span>"
+                ]
+            },
+            {
+                title: "SYSTEM // NETWORK", status: "active",
+                logs: [
+                    "> netsec net status --verbose",
+                    "<span class='c-dim'>[EDGE] us-east-1 ............... 12ms</span>",
+                    "<span class='c-dim'>[EDGE] eu-west-1 ............... 34ms</span>",
+                    "<span class='c-dim'>[EDGE] ap-southeast-1 .......... 89ms</span>",
+                    "<span class='c-blue'>[CDN] Cache hit rate: 97.3%</span>"
+                ]
+            },
+            {
+                title: "AGENT_11 // ROLLBACK", status: "busy",
+                logs: [
+                    "> netsec agent run --task rollback-prod",
+                    "<span class='c-red'>[ERR] deploy-v2.42.0 health check failed</span>",
+                    "<span class='c-dim'>[FETCH] Last stable: deploy-v2.41.0</span>",
+                    "<span class='c-blue'>[DIFF] 3 commits to revert</span>",
+                    "<span class='c-green'>[REVERT] Applied reverse patches</span>"
+                ]
+            },
+            {
+                title: "AGENT_04 // SECURITY", status: "active",
+                logs: [
+                    "> netsec agent run --task audit-deps",
+                    "<span class='c-dim'>[SCAN] Checking 412 dependencies...</span>",
+                    "<span class='c-green'>[OK] 0 critical vulnerabilities</span>",
+                    "<span class='c-yellow'>[WARN] 2 low-severity issues found</span>",
+                    "<span class='c-dim'>[AUTO] Applying patch to lodash v4.17.21</span>"
+                ]
+            },
+            {
+                title: "SYSTEM // HEARTBEAT", status: "active",
+                logs: [
+                    "> netsec heartbeat --interval 1s",
+                    "<span class='c-dim'>[PING] api.netsec.dev ........... 8ms</span>",
+                    "<span class='c-dim'>[PING] auth.netsec.dev .......... 11ms</span>",
+                    "<span class='c-dim'>[PING] cdn.netsec.dev ........... 4ms</span>",
+                    "<span class='c-dim'>[PING] db.netsec.dev ............ 2ms</span>"
+                ]
+            },
+            {
+                title: "AGENT_09 // CODE_REVIEW", status: "busy",
+                logs: [
+                    "> netsec agent run --task PR-4092",
+                    "<span class='c-dim'>[READ] 14 files changed, +342 -12</span>",
+                    "<span class='c-blue'>[SCAN] Security patterns ....... OK</span>",
+                    "<span class='c-yellow'>[WARN] Avoid N+1 query in api/users.ts:34</span>",
+                    "<span class='c-green'>[COMMENT] Posted review to GitHub</span>"
+                ]
+            },
+            // Duplicate some to fill a 12-cell (4x3) grid
+            { title: "SYSTEM // QUEUE", status: "active", logs: ["> netsec queue status", "<span class='c-dim'>[WAIT] 0 pending tasks</span>", "<span class='c-blue'>[ACTIVE] 4 running agents</span>", "<span class='c-dim'>[HIST] 247 tasks completed today</span>"] },
+            { title: "AGENT_06 // DOCS", status: "active", logs: ["> netsec agent run --task update-docs", "<span class='c-dim'>[SCAN] 7 undocumented exports found</span>", "<span class='c-blue'>[GEN] docs/api-reference.md updated</span>", "<span class='c-green'>[OK] Push to docs repository successful</span>"] },
+            { title: "AGENT_08 // TEST", status: "busy", logs: ["> netsec test --suite integration", "<span class='c-dim'>[RUN] auth.spec.ts ........ </span><span class='c-green'>PASS</span>", "<span class='c-dim'>[RUN] billing.spec.ts ..... </span><span class='c-green'>PASS</span>", "<span class='c-blue'>[COV] Total coverage: 94.2%</span>"] }
+        ];
+
+        const gridContainer = document.getElementById('terminalGrid');
+
+        // Create the 12 cells
+        streams.forEach((stream, index) => {
+            const cell = document.createElement('div');
+            cell.className = 'term-cell';
+            
+            const dotClass = stream.status === 'active' ? 'dot active' : 'dot busy';
+            cell.innerHTML = `
+                <div class="term-header"><div class="${dotClass}"></div> ${stream.title}</div>
+                <div class="term-content" id="term-content-${index}"></div>
+            `;
+            gridContainer.appendChild(cell);
+
+            const contentDiv = cell.querySelector(`#term-content-${index}`);
+            let lineIndex = 0;
+
+            // Function to type next line
+            function typeNextLine() {
+                if(lineIndex >= stream.logs.length) {
+                    lineIndex = 0; // Loop back
+                    // Clear cell occasionally for realism
+                    if(Math.random() > 0.7) contentDiv.innerHTML = ''; 
+                }
+
+                const lineDiv = document.createElement('div');
+                lineDiv.className = 'term-line';
+                lineDiv.innerHTML = stream.logs[lineIndex];
+                contentDiv.appendChild(lineDiv);
+
+                // Keep only last 6 lines so it doesn't overflow
+                if(contentDiv.children.length > 6) {
+                    contentDiv.removeChild(contentDiv.firstChild);
+                }
+
+                lineIndex++;
+
+                // Randomize typing speed between 500ms and 3000ms
+                const nextDelay = Math.random() * 2500 + 500;
+                setTimeout(typeNextLine, nextDelay);
+            }
+
+            // Start typing with a staggered initial delay
+            setTimeout(typeNextLine, Math.random() * 2000);
+        });
+    </script>
+</body>
+</html>

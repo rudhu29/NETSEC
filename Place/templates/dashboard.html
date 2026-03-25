@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Admin Dashboard</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        
+        body {
+            margin: 0; font-family: 'Inter', sans-serif;
+            background-color: #0a0a0a; color: #e0e0e0;
+            padding: 40px;
+        }
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 30px; border-bottom: 1px solid #333; padding-bottom: 20px;
+        }
+        h1 { margin: 0; color: #fff; font-weight: 800; font-size: 28px; letter-spacing: -0.5px; }
+        .live-badge {
+            background: rgba(0, 255, 204, 0.1); color: #00ffcc;
+            padding: 5px 12px; border-radius: 20px; font-size: 14px; font-weight: bold;
+            border: 1px solid rgba(0, 255, 204, 0.3); display: inline-flex; align-items: center; gap: 8px;
+        }
+        .pulse { width: 8px; height: 8px; background: #00ffcc; border-radius: 50%; animation: blink 1.5s infinite; }
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.2; } 100% { opacity: 1; } }
+        
+        .logout-btn {
+            background: #ff4d4d; color: #fff; text-decoration: none;
+            padding: 10px 20px; border-radius: 8px; font-weight: 600; transition: 0.3s;
+        }
+        .logout-btn:hover { background: #ff1a1a; box-shadow: 0 0 15px rgba(255, 77, 77, 0.4); }
+
+        .table-container {
+            background: #141414; border: 1px solid #222;
+            border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 18px 20px; text-align: left; border-bottom: 1px solid #222; }
+        th { background-color: #1a1a1a; color: #888; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background-color: #1a1a1a; }
+        
+        .level-INFO { color: #00b3ff; font-weight: 600; background: rgba(0, 179, 255, 0.1); padding: 4px 10px; border-radius: 6px;}
+        .level-WARNING { color: #ffcc00; font-weight: 600; background: rgba(255, 204, 0, 0.1); padding: 4px 10px; border-radius: 6px;}
+        .level-ERROR { color: #ff4d4d; font-weight: bold; background: rgba(255, 77, 77, 0.15); padding: 4px 10px; border-radius: 6px;}
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>Command Center</h1>
+            <div style="margin-top: 10px;">
+                <span class="live-badge"><div class="pulse"></div> Redis Stream Active</span>
+            </div>
+        </div>
+        <a href="/logout" class="logout-btn">System Logout</a>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Severity</th>
+                    <th>Origin IP</th>
+                    <th>System Event</th>
+                </tr>
+            </thead>
+            <tbody id="logTableBody">
+                </tbody>
+        </table>
+    </div>
+
+    <script>
+        async function fetchLogs() {
+            try {
+                const response = await fetch('/api/logs');
+                if (response.status === 401) {
+                    window.location.href = '/login'; // Session expire hone par login par bhejo
+                    return;
+                }
+                const logs = await response.json();
+                
+                const tableBody = document.getElementById('logTableBody');
+                tableBody.innerHTML = ''; 
+                
+                logs.forEach(log => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td style="color: #888;">${log.timestamp}</td>
+                        <td><span class="level-${log.level}">${log.level}</span></td>
+                        <td style="font-family: monospace; color: #aaa;">${log.ip}</td>
+                        <td>${log.message}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error("Connection lost:", error);
+            }
+        }
+        fetchLogs();
+        setInterval(fetchLogs, 1000);
+    </script>
+</body>
+</html>
